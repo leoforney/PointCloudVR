@@ -1,52 +1,119 @@
 class plyParser {
-    fileName;
+    file; //not using right now
+    binFile;
+    textFile; textData = "";
     fileData;
     vertexData;
     rgbData;
-    format; version;
+    format = ""; version;
     numVertices; numFaces;
+    hasColors; hasFaces;
+    
+    //Custom event to ensure files are loaded
+    // loadedEvent = new Event('loadedEvent', {
+    //     bubbles: true,
+    //     cancelable: false,
+    //     composed: true
+    // })
 
 
-    constructor(modelPath) {
-        this.modelPath = modelPath;
+    constructor(file) {
+        this.hasColors = false;
+        this.hasFaces = false;
+        this.format = "";
     }
 
-    setFileData(filePath) {
-        this.fileName = filePath;
-        jQuery.get(filePath, function(data) {
-            fileData = data;
-            fileData = String(plyData);
-        });
+    setFile = function(file, headerCallback) { 
+        console.log("Beginning plyParser.setFile...");
+
+        if (file) {
+            var binr = new FileReader(file);
+            var textr = new FileReader(file);
+
+            //Get binary file
+            binr.readAsArrayBuffer(file);
+            binr.onload = function() {
+                console.log("Binary file loaded", binr.readyState);
+                console.log("Result: ", binr.result);
+
+                this.binFile = new Uint8Array(binr.result);
+            }
+
+            //Get text file for header
+            textr.readAsText(file);
+            textr.onload = function() {
+                console.log("Text file loaded", textr.readyState);
+                console.log("Result: ", textr.result);
+                this.textFile = file;
+                this.textData = textr.result;
+
+                console.log("THIS: ", this);
+
+                headerCallback(textr.result, this.parseBinary.bind(this));
+            }
+
+        } else {
+            console.error("Failed to load file");
+        }
+
+        console.log("Finished plyParser.setFile!");
     }
 
-    parseHeader() {
+    //Reads PLY header for formatting data. Callback function
+    parseHeader = function(text, binaryCallback) {
+        console.log("Starting plyParser.parseHeader...");
+
         //Read header
         var curVal, newline, line;
         //var hasNormals = false;
+        //text = String(text);
 
-        while(this.fileData.length) {
-            newline = this.fileData.indexOf("\n")+1;
-            line = this.fileData.substring(0, newline - 1).trim();
-            this.fileData = this.fileData.substring(newline);
+        //console.log("TEXT DATA: " + text);
+
+        while(text.length) {
+            newline = text.indexOf("\n") + 1;
+            line = text.substring(0, newline - 1).trim();
+            text = text.substring(newline);
 
             //Get format
-            curVal = this.fileData.match(/format (\w+) (\d+)\.(\d+)/);
+            curVal = text.match(/format (\w+) (\d+)\.(\d+)/);
             if(curVal) {
                 this.format = curVal[1];
                 this.version = curVal[2];
             }
 
             //Get elements
-            curVal = this.fileData.match(/element (\w+) (\d+)/); //find first element line
+            curVal = text.match(/element (\w+) (\d+)/); //find first element line
             if(curVal) {
                 if(curVal[1] == "vertex") this.numVertices = parseInt(curVal[2]);
-                if(curVal[1] == "face") this.numFaces = parseInt(curVal[2]);
-                
+                if(curVal[1] == "face") {
+                    this.numFaces = parseInt(curVal[2]);
+                    this.hasFaces = true;
+                }   
+            }
+
+            //Get properties
+            curVal = text.match(/property (\w+) (\w+)/);
+            if(curVal) {
+                if(curVal[2] == "red" || curVal[2] == "green" || curVal[2] == "blue") {
+                    this.hasColors = true;
+                }
             }
 
             //if(line == "property float nx") hasNormals = true;
             if(line == "end_header") break;
         }
+
+        console.log("Format: " + this.format);
+        console.log("Version: " + this.version);
+        console.log("Number of vertices: " + this.numVertices);
+        console.log("Number of faces" + this.numFaces); 
+        console.log("Has colors? " + this.hasColors); 
+
+        console.log("Finished plyParser.parseHeader!");
+
+        //Callback to parseBinary 
+        binaryCallback();
     }
 
     //Only works without color data right now, should be easy to implement though
@@ -74,29 +141,16 @@ class plyParser {
         }
     }
 
+    
+
     parseBinary() {
-        if(testEndian != "Compatible")  {
+        console.log("Starting plyParser.parseBinary...");
+
+        //Check compatibility
+        if(this.testEndian() != "Compatible")  {
             console.error("Your system endian is incompatible with this file!");
             throw "Incompatible Endian";
         }
-
-        //Convert ascii string to binary
-        plyData = plyData.replace(/\s+/g, ''); //Strip all whitespace
-        var binData = "";
-
-        //Convert data from hex to ascii representation -- not working :(
-        for(var i = 0; i < plyData.length; i++) {
-            hexValue = plyData[i].charCodeAt(0);
-            //console.log(plyData[i]);
-            hexValue = parseFloat(hexValue);
-            hexValue = hexValue.toString(16);
-            binData += hexValue + " ";
-        }
-        console.log(binData);
-
-        let temp = plyData[1].charCodeAt(0);
-        console.log("Char Code: " + temp);
-        console.log(parseFloat(temp));
         
         /** var type        size (bytes)
          * ------------------------
@@ -110,6 +164,54 @@ class plyParser {
         //Get vertices
         this.vertexData = new Float32Array(this.numVertices * 3);
         this.rgbData = new Float32Array(this.numVertices * 3);
+
+        //First get past the header
+        let onHeader = true;
+        let i = 0;
+        while(onHeader) {
+            //If we see the "end_header" bits, break loop
+            if(this.binFile[0] == 97 && this.binFile[1] == 100
+                && this.binFile[2] == 101 && this.binFile[3] == 114) {
+                    onHeader = false;
+                    this.binFile.splice(0, 4);
+            } else {
+                this.binFile.shift(); //Move one bit if we haven't found the end
+            }
+        }
+        this.binFile.shift(); //one extra shift for newline
+
+        //Reduces Uint8Array to binary string
+        const toBinString = (bytes) =>
+            bytes.reduce((str, byte) => str + byte.toString(2).padStart(8, '0'), '');
+        
+        binString = toBinString(view);
+        console.log(binString);
+
+        //Now start filling arrays
+        for(let i = 0; i < this.vertexData.size(); i += 3) {
+            //First three values are vertex coords
+            //Each coord is a 8-byte double
+            let xCoord = "";
+            let yCoord = "";
+            let zCoord = "";
+
+            for(let i = 0; i < 32; i++) {
+                xCoord += this.binString[i];
+            }
+
+            for(let i = 0; i < 32; i++) {
+                yCoord += this.binString[i];
+            }
+
+            for(let i = 0; i < 32; i++) {
+                zCoord += this.binString[i];
+            }
+
+            break;
+            
+        }
+        console.log(xCoord);
+        console.log(Number(xCoord));
     }
 
     //Test that system endian matches file endian, they must be compatible
