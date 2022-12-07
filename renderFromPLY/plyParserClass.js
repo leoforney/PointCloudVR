@@ -23,7 +23,7 @@ class plyParser {
         this.format = "";
     }
 
-    setFile = function(file, headerCallback) { 
+    setFile = function(file) { 
         console.log("Beginning plyParser.setFile...");
 
         if (file) {
@@ -46,10 +46,6 @@ class plyParser {
                 console.log("Result: ", textr.result);
                 this.textFile = file;
                 this.textData = textr.result;
-
-                console.log("THIS: ", this);
-
-                headerCallback(textr.result, this.parseBinary.bind(this));
             }
 
         } else {
@@ -60,7 +56,7 @@ class plyParser {
     }
 
     //Reads PLY header for formatting data. Callback function
-    parseHeader = function(text, binaryCallback) {
+    parseHeader = function() {
         console.log("Starting plyParser.parseHeader...");
 
         //Read header
@@ -68,22 +64,22 @@ class plyParser {
         //var hasNormals = false;
         //text = String(text);
 
-        //console.log("TEXT DATA: " + text);
+        console.log("TEXT DATA: " + this.textData);
 
-        while(text.length) {
-            newline = text.indexOf("\n") + 1;
-            line = text.substring(0, newline - 1).trim();
-            text = text.substring(newline);
+        while(this.textData.length) {
+            newline = this.textData.indexOf("\n") + 1;
+            line = this.textData.substring(0, newline - 1).trim();
+            text = this.textData.substring(newline);
 
             //Get format
-            curVal = text.match(/format (\w+) (\d+)\.(\d+)/);
+            curVal = this.textData.match(/format (\w+) (\d+)\.(\d+)/);
             if(curVal) {
                 this.format = curVal[1];
                 this.version = curVal[2];
             }
 
             //Get elements
-            curVal = text.match(/element (\w+) (\d+)/); //find first element line
+            curVal = this.textData.match(/element (\w+) (\d+)/); //find first element line
             if(curVal) {
                 if(curVal[1] == "vertex") this.numVertices = parseInt(curVal[2]);
                 if(curVal[1] == "face") {
@@ -93,7 +89,7 @@ class plyParser {
             }
 
             //Get properties
-            curVal = text.match(/property (\w+) (\w+)/);
+            curVal = this.textData.match(/property (\w+) (\w+)/);
             if(curVal) {
                 if(curVal[2] == "red" || curVal[2] == "green" || curVal[2] == "blue") {
                     this.hasColors = true;
@@ -113,17 +109,20 @@ class plyParser {
         console.log("Finished plyParser.parseHeader!");
 
         //Callback to parseBinary 
-        binaryCallback();
+        // binaryCallback();
+        //return new Promise(this.parseAscii);
     }
 
     //Only works without color data right now, should be easy to implement though
-    parseAscii() {
+    parseAscii = function() {
         if(this.format == "ascii") {
             this.vertexData = new Float32Array(numVerts * 3);
+            this.rgbData = new Float32Array(numVerts * 4);
+
             var curVal, newline, line;
     
             //Reads points in ply ascii format
-            for(let i = 0; i < this.numVertices; i++) {
+            for(let i = 0; i < this.numVertices; i += 3) {
                 newline = this.fileData.indexOf("\n") + 1;
                 line = this.fileData.substring(0, newline - 1).trim();
                 this.fileData = this.fileData.substring(newline);
@@ -133,12 +132,28 @@ class plyParser {
                 let x = i * 3;
                 let y = i * 3 + 1;
                 let z = i * 3 + 2;
+
+                let r = i * 4;
+                let g = i * 4 + 1;
+                let b = i * 4 + 2;
+                let a = i * 4 + 3;
     
+                //Grab vertex coords
                 this.vertexData[x] = parseFloat(curVal[0]);
                 this.vertexData[y] = parseFloat(curVal[1]);
                 this.vertexData[z] = parseFloat(curVal[2]);
+
+                //Grab rgba values (Skip normal values - indices 3,4,5)
+                this.rgbData[r] = parseInt(curVal[6]);
+                this.rgbData[g] = parseInt(curVal[7]);
+                this.rgbData[b] = parseInt(curVal[8]);
+                this.rgbData[a] = parseInt(curVal[9]);
+
             }
         }
+        console.log(this.vertexData);
+        console.log(this.rgbData);
+        
     }
 
     
