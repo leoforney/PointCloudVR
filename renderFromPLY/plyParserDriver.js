@@ -15,9 +15,27 @@ var vertexData, rgbData;
 var numVertices, numFaces;
 var hasColors, hasFaces;
 var format, version;
+var implode = false;
 
+function resizeCanvasToDisplaySize(canvas) {
+    // Lookup the size the browser is displaying the canvas in CSS pixels.
+    const displayWidth  = canvas.clientWidth;
+    const displayHeight = canvas.clientHeight;
 
-setFile = function(file) { 
+    // Check if the canvas is not the same size.
+    const needResize = canvas.width  !== displayWidth ||
+        canvas.height !== displayHeight;
+
+    if (needResize) {
+        // Make the canvas the same size
+        canvas.width  = displayWidth;
+        canvas.height = displayHeight;
+    }
+
+    return needResize;
+}
+
+setFile = function(file) {
     console.log("Beginning plyParser.setFile...");
 
     if (file) {
@@ -78,7 +96,7 @@ parseHeader = function() {
             if(curVal[1] == "face") {
                 numFaces = parseInt(curVal[2]);
                 hasFaces = true;
-            }   
+            }
         }
 
         //Get properties
@@ -96,17 +114,36 @@ parseHeader = function() {
     console.log("Format: " + format);
     console.log("Version: " + version);
     console.log("Number of vertices: " + numVertices);
-    console.log("Number of faces" + numFaces); 
-    console.log("Has colors? " + hasColors); 
+    console.log("Number of faces" + numFaces);
+    console.log("Has colors? " + hasColors);
 
     console.log("Finished plyParser.parseHeader!");
     parseAscii();
 }
 
+var verticies = []
+var rgbTexture = []
+var modifiedVerticies = []
+
+formArrayFromSegmentedBuffer = function(buf, verticies, sizeOfSublist) {
+    var arr = new Float32Array(numVertices * sizeOfSublist);
+
+    var counter = 0;
+
+    buf.forEach((vert) => {
+        vert.forEach(coord => {
+            arr[counter] = coord;
+            counter++;
+        })
+    })
+
+    return arr;
+}
+
 parseAscii = function() {
     if(format == "ascii") {
-        vertexData = new Float32Array(numVertices * 3);
-        rgbData = new Float32Array(numVertices * 4);
+
+        modifiedVerticies = [];
 
         var curVal, newline, line;
 
@@ -127,24 +164,34 @@ parseAscii = function() {
             let b = i * 4 + 2;
             let a = i * 4 + 3;
 
+            var vertexInfoCurrent = [parseFloat(curVal[0]), parseFloat(curVal[1]), parseFloat(curVal[2])];
+            verticies.push(vertexInfoCurrent)
             //Grab vertex coords
-            vertexData[x] = parseFloat(curVal[0]);
-            vertexData[y] = parseFloat(curVal[1]);
-            vertexData[z] = parseFloat(curVal[2]);
+            //vertexData[x] = parseFloat(curVal[0]);
+            //vertexData[y] = parseFloat(curVal[1]);
+            //vertexData[z] = parseFloat(curVal[2]);
 
+            var rgbTextureCurrent = [parseInt(curVal[6]) / 255.0, parseInt(curVal[7]) / 255.0, parseInt(curVal[8]) / 255.0, parseInt(curVal[9]) / 255.0]
+            rgbTexture.push(rgbTextureCurrent)
             //Grab rgba values (Skip normal values - indices 3,4,5)
-            rgbData[r] = parseInt(curVal[6]) / 255;
-            rgbData[g] = parseInt(curVal[7]) / 255;
-            rgbData[b] = parseInt(curVal[8]) / 255;
-            rgbData[a] = parseInt(curVal[9]) / 255;
+            //rgbData[r] = parseInt(curVal[6]) / 255;
+            //rgbData[g] = parseInt(curVal[7]) / 255;
+            //rgbData[b] = parseInt(curVal[8]) / 255;
+            //rgbData[a] = parseInt(curVal[9]) / 255;
 
         }
-    }
-    console.log("VRTX", vertexData);
-    console.log("RGB", rgbData);
 
-    vertexBuffer = createAndLoadBuffer(vertexData);
-    vertexColorBuffer = createAndLoadBuffer(rgbData);
+        vertexData = formArrayFromSegmentedBuffer(verticies, numVertices,3);
+        rgbData = formArrayFromSegmentedBuffer(rgbTexture, numVertices,4);
+
+        vertexBuffer = createAndLoadBuffer(vertexData);
+        vertexColorBuffer = createAndLoadBuffer(rgbData);
+
+    }
+    //console.log("VRTX", vertexData);
+    //console.log("RGB", rgbData);
+
+
 }
 
 
@@ -252,24 +299,55 @@ function handleKeyPress(event)
             paused = !paused;
             break;
         case 'x':
+            model.premultiply(new THREE.Matrix4().makeRotationX(toRadians(90)));
             axis = 'x';
             break;
         case 'y':
+            model.premultiply(new THREE.Matrix4().makeRotationY(toRadians(90)));
             axis = 'y';
             break;
         case 'z':
+            model.premultiply(new THREE.Matrix4().makeRotationZ(toRadians(90)));
             axis = 'z';
             break;
         case 'o':
             model.identity();
             axis = 'x';
             break;
+        case 'w':
+            view.premultiply(new THREE.Matrix4().makeTranslation(0, -0.05, 0))
+            break;
+        case 'a':
+            view.premultiply(new THREE.Matrix4().makeTranslation(0.05, 0, 0))
+            break;
+        case 's':
+            view.premultiply(new THREE.Matrix4().makeTranslation(0, 0.05, 0))
+            break;
+        case 'd':
+            view.premultiply(new THREE.Matrix4().makeTranslation(-0.05, 0, 0))
+            break;
+        case 'i':
+            view.premultiply(new THREE.Matrix4().makeRotationX(toRadians(-0.5)))
+            break;
+        case 'k':
+            view.premultiply(new THREE.Matrix4().makeRotationX(toRadians(0.5)))
+            break;
+        case 'j':
+            view.premultiply(new THREE.Matrix4().makeRotationY(toRadians(-0.5)))
+            break;
+        case 'l':
+            view.premultiply(new THREE.Matrix4().makeRotationY(toRadians(0.5)))
+            break;
+
 	}
 }
 
 // code to actually render our geometry
 function draw()
 {
+    resizeCanvasToDisplaySize(gl.canvas);
+
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     // clear the framebuffer
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BIT);
 
@@ -293,8 +371,13 @@ function draw()
     gl.enableVertexAttribArray(positionIndex);
     gl.enableVertexAttribArray(colorIndex);
 
+    if (modifiedVerticies.length == 0) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    } else {
+        gl.bindBuffer(gl.ARRAY_BUFFER, createAndLoadBuffer(formArrayFromSegmentedBuffer(modifiedVerticies, numVertices, 3)));
+    }
     // bind buffers for points
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+
     gl.vertexAttribPointer(positionIndex, 3, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
     gl.vertexAttribPointer(colorIndex, 4, gl.FLOAT, false, 0, 0);
@@ -352,8 +435,7 @@ function main() {
     // key handlers
     window.onkeypress = handleKeyPress;
 
-    // create model data
-    var cube = makeCube();
+    document.getElementById("implodeButton").onclick
 
     // load and compile the shader pair
     shader = createShaderProgram(gl, vshaderSource, fshaderSource);
@@ -373,10 +455,30 @@ function main() {
     //Bring in plyParser class
     //plyParse = new plyParser();
 
-    
+    document.addEventListener( 'mousewheel', (event) => {
+        view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, -event.deltaY/500))
+    });
+
+    var interval = 0.0001
 
     // define an animation loop
     var animate = function() {
+
+        if (modifiedVerticies.length === 0) {
+            modifiedVerticies = [...verticies];
+        }
+
+
+        if (implode) {
+            for (var i = 0; i < modifiedVerticies.length; i++) {
+                for (var j = 0; j < 3; j++) {
+                    modifiedVerticies[i][j] = modifiedVerticies[i][j] * 0.99;
+                }
+            }
+        }
+
+        //vertexData = formArrayFromSegmentedBuffer(verticies, numVertices,3);
+
 	    draw();
 
         if (!paused) {
@@ -398,6 +500,8 @@ function main() {
         // request that the browser calls animate() again "as soon as it can"
         requestAnimationFrame(animate);
     };
+
+    model.premultiply(new THREE.Matrix4().makeRotationX(toRadians(270)));
 
   animate();
 }

@@ -1,22 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Rendering test</title>
+    <meta charset="utf-8"/>
+    <title>Rendering test</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: arial,serif;
+        }
+        /* make the canvas fill its container */
+        #theCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        button {
+            margin-top: 5px;
+        }
+    </style>
 </head>
 
-<body>
-	<canvas id="theCanvas" width="600" height="400">
-    Please use a browser that supports "canvas"
-    </canvas>
+    <body>
+        <canvas id="theCanvas">
+            Please use a browser that supports "canvas"
+        </canvas>
 
-    <input id="fileinput" type="file" /><br />
+        <div style="position: absolute; top: 0; right: 0; margin: 15px; background-color: #C0C0C07D; border-radius: 5px; padding: 15px;">
+            <h3>Point Cloud Expirements</h3>
+            <input id="fileinput" type="file"/><br/>
+            <button id="implodeButton" onclick="implode = true;">Implode</button>
+        </div>
 
-    <script src="three.js"></script>
-    <script src="cs336util.js"></script>
-    
-    <script src="plyParserDriver.js"></script>
-        
-    <script>window.onload = main</script>
-</body>
+        <script src="three.js"></script>
+        <script src="cs336util.js"></script>
+
+        <script src="plyParserDriver.js"></script>
+
+        <script>window.onload = main</script>
+    </body>
 </html>
