@@ -34,7 +34,8 @@
             <span><label>Verticies: </label><input type="range" min="1" max="100" value="100" id="verticesSlider"><br/></span>
 
 
-            <button id="implodeButton" onclick="implode = true;">Implode</button>
+            <button id="implodeButton" onclick="effects.implode = !effects.implode;">Implode</button><br/>
+            <button id="resetButton" onclick="clearEffects()">Reset</button>
         </div>
 
         <script src="three.js"></script>

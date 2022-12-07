@@ -6,7 +6,18 @@ var vertexData, rgbData;
 var numVertices, numFaces;
 var hasColors, hasFaces;
 var format, version;
-var implode = false;
+
+var effects = {
+    implode: false,
+    jiggle: false
+}
+
+clearEffects = function() {
+    for (const key in effects) {
+        effects[key] = false;
+    }
+    modifiedVerticies = [];
+}
 
 
 var verticesPercent = 1;
@@ -121,7 +132,7 @@ var modifiedVerticies = []
 var adjustedVerticiesAmount = 0;
 
 percentScaledFunction = function (percent) {
-    return -(1/(((4/3) * percent) - 2)) - 0.5;
+    return Math.pow(200, percent - 1)
 }
 
 formArrayFromSegmentedBuffer = function(buf, vertAmounts, sizeOfSublist) {
@@ -418,8 +429,6 @@ function main() {
     // key handlers
     window.onkeypress = handleKeyPress;
 
-    document.getElementById("implodeButton").onclick
-
     // load and compile the shader pair
     shader = createShaderProgram(gl, vshaderSource, fshaderSource);
 
@@ -448,17 +457,16 @@ function main() {
         draw()
     })
 
-    var interval = 0.0001
+    const clone = (items) => items.map(item => Array.isArray(item) ? clone(item) : item);
 
     // define an animation loop
     var animate = function() {
 
         if (modifiedVerticies.length === 0) {
-            modifiedVerticies = [...verticies];
+            modifiedVerticies = clone(verticies)
         }
 
-
-        if (implode) {
+        if (effects.implode) {
             for (var i = 0; i < modifiedVerticies.length; i++) {
                 for (var j = 0; j < 3; j++) {
                     modifiedVerticies[i][j] = modifiedVerticies[i][j] * 0.99;
