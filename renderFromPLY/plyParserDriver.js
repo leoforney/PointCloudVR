@@ -1,12 +1,3 @@
-//
-// Colored rotating cube. Illustrates perspective projection.
-// See definition of view and projection matrices below.
-// See animation loop for transformations.
-//
-// Code to actually make the cube model has been moved into
-// cs336util.js as function makeCube
-
-
 //PLY PARSER
 
 var binr, textr;
@@ -16,6 +7,9 @@ var numVertices, numFaces;
 var hasColors, hasFaces;
 var format, version;
 var implode = false;
+
+
+var verticesPercent = 1;
 
 function resizeCanvasToDisplaySize(canvas) {
     // Lookup the size the browser is displaying the canvas in CSS pixels.
@@ -124,30 +118,41 @@ parseHeader = function() {
 var verticies = []
 var rgbTexture = []
 var modifiedVerticies = []
+var adjustedVerticiesAmount = 0;
 
-formArrayFromSegmentedBuffer = function(buf, verticies, sizeOfSublist) {
-    var arr = new Float32Array(numVertices * sizeOfSublist);
+percentScaledFunction = function (percent) {
+    return -(1/(((4/3) * percent) - 2)) - 0.5;
+}
+
+formArrayFromSegmentedBuffer = function(buf, vertAmounts, sizeOfSublist) {
+    var amtVertsCalculatedReduced = Math.ceil(vertAmounts * percentScaledFunction(verticesPercent));
+    var step = Math.ceil(vertAmounts / amtVertsCalculatedReduced);
+    adjustedVerticiesAmount = Math.floor(vertAmounts / step)
+    var arr = new Float32Array(adjustedVerticiesAmount * sizeOfSublist);
 
     var counter = 0;
 
-    buf.forEach((vert) => {
-        vert.forEach(coord => {
-            arr[counter] = coord;
-            counter++;
-        })
+    buf.forEach((vert, index) => {
+        if (index % step === 0) {
+            vert.forEach(coord => {
+                arr[counter] = coord;
+                counter++;
+            })
+        }
     })
 
     return arr;
 }
 
 parseAscii = function() {
-    if(format == "ascii") {
+    if(format === "ascii") {
 
         modifiedVerticies = [];
+        verticies = [];
+        rgbTexture = [];
 
         var curVal, newline, line;
 
-        //Reads points in ply ascii format
         for(let i = 0; i < numVertices; i++) {
             newline = textData.indexOf("\n") + 1;
             line = textData.substring(0, newline - 1).trim();
@@ -155,29 +160,11 @@ parseAscii = function() {
 
             curVal = line.split(" ");
 
-            let x = i * 3;
-            let y = i * 3 + 1;
-            let z = i * 3 + 2;
-
-            let r = i * 4;
-            let g = i * 4 + 1;
-            let b = i * 4 + 2;
-            let a = i * 4 + 3;
-
             var vertexInfoCurrent = [parseFloat(curVal[0]), parseFloat(curVal[1]), parseFloat(curVal[2])];
             verticies.push(vertexInfoCurrent)
-            //Grab vertex coords
-            //vertexData[x] = parseFloat(curVal[0]);
-            //vertexData[y] = parseFloat(curVal[1]);
-            //vertexData[z] = parseFloat(curVal[2]);
 
             var rgbTextureCurrent = [parseInt(curVal[6]) / 255.0, parseInt(curVal[7]) / 255.0, parseInt(curVal[8]) / 255.0, parseInt(curVal[9]) / 255.0]
             rgbTexture.push(rgbTextureCurrent)
-            //Grab rgba values (Skip normal values - indices 3,4,5)
-            //rgbData[r] = parseInt(curVal[6]) / 255;
-            //rgbData[g] = parseInt(curVal[7]) / 255;
-            //rgbData[b] = parseInt(curVal[8]) / 255;
-            //rgbData[a] = parseInt(curVal[9]) / 255;
 
         }
 
@@ -188,10 +175,6 @@ parseAscii = function() {
         vertexColorBuffer = createAndLoadBuffer(rgbData);
 
     }
-    //console.log("VRTX", vertexData);
-    //console.log("RGB", rgbData);
-
-
 }
 
 
@@ -372,14 +355,14 @@ function draw()
     gl.enableVertexAttribArray(colorIndex);
 
     if (modifiedVerticies.length == 0) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, createAndLoadBuffer(formArrayFromSegmentedBuffer(verticies, numVertices, 3)));
     } else {
         gl.bindBuffer(gl.ARRAY_BUFFER, createAndLoadBuffer(formArrayFromSegmentedBuffer(modifiedVerticies, numVertices, 3)));
     }
     // bind buffers for points
 
     gl.vertexAttribPointer(positionIndex, 3, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, createAndLoadBuffer(formArrayFromSegmentedBuffer(rgbTexture, numVertices, 4)));
     gl.vertexAttribPointer(colorIndex, 4, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
@@ -388,7 +371,7 @@ function draw()
     var transformLoc = gl.getUniformLocation(shader, "transform");
     gl.uniformMatrix4fv(transformLoc, false, transform.elements);
 
-    gl.drawArrays(gl.POINTS, 0, numVertices);
+    gl.drawArrays(gl.POINTS, 0, adjustedVerticiesAmount);
 
     // draw axes (not transformed by model transformation)
     gl.bindBuffer(gl.ARRAY_BUFFER, axisBuffer);
@@ -458,6 +441,12 @@ function main() {
     document.addEventListener( 'mousewheel', (event) => {
         view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, -event.deltaY/500))
     });
+
+    var vertSlider = document.getElementById("verticesSlider")
+    vertSlider.addEventListener("change", function() {
+        verticesPercent = vertSlider.value / 100.0;
+        draw()
+    })
 
     var interval = 0.0001
 
