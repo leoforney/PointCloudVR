@@ -12,6 +12,11 @@ var effects = {
     jiggle: false
 }
 
+var effectsProperties = {
+    implode: 0.025,
+    jiggle: 50/700
+}
+
 clearEffects = function() {
     for (const key in effects) {
         effects[key] = false;
@@ -459,6 +464,14 @@ function main() {
 
     const clone = (items) => items.map(item => Array.isArray(item) ? clone(item) : item);
 
+    function generateRandomJiggle(pointVal, jiggleScale) {
+
+        var min = -jiggleScale * pointVal
+        var max = jiggleScale * pointVal
+
+        return Math.random() * (max - min) + min
+    }
+
     // define an animation loop
     var animate = function() {
 
@@ -466,10 +479,18 @@ function main() {
             modifiedVerticies = clone(verticies)
         }
 
+        if (effects.jiggle) {
+            for (var i = 0; i < modifiedVerticies.length; i++) {
+                for (var j = 0; j < 3; j++) {
+                    modifiedVerticies[i][j] = verticies[i][j] + generateRandomJiggle(modifiedVerticies[i][j], effectsProperties.jiggle)
+                }
+            }
+        }
+
         if (effects.implode) {
             for (var i = 0; i < modifiedVerticies.length; i++) {
                 for (var j = 0; j < 3; j++) {
-                    modifiedVerticies[i][j] = modifiedVerticies[i][j] * 0.99;
+                    modifiedVerticies[i][j] = modifiedVerticies[i][j] * (1 - effectsProperties.implode);
                 }
             }
         }
