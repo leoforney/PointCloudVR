@@ -102,7 +102,7 @@ parseAscii = function() {
         var curVal, newline, line;
 
         //Reads points in ply ascii format
-        for(let i = 0; i < numVertices / 3; i++) {
+        for(let i = 0; i < numVertices; i++) {
             newline = textData.indexOf("\n") + 1;
             line = textData.substring(0, newline - 1).trim();
             textData = textData.substring(newline);
