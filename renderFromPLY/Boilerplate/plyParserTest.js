@@ -102,10 +102,10 @@ parseAscii = function() {
         var curVal, newline, line;
 
         //Reads points in ply ascii format
-        for(let i = 0; i < numVertices; i += 3) {
+        for(let i = 0; i < numVertices / 3; i++) {
             newline = textData.indexOf("\n") + 1;
             line = textData.substring(0, newline - 1).trim();
-            fileData = textData.substring(newline);
+            textData = textData.substring(newline);
 
             curVal = line.split(" ");
 
@@ -124,10 +124,10 @@ parseAscii = function() {
             vertexData[z] = parseFloat(curVal[2]);
 
             //Grab rgba values (Skip normal values - indices 3,4,5)
-            rgbData[r] = parseInt(curVal[6]);
-            rgbData[g] = parseInt(curVal[7]);
-            rgbData[b] = parseInt(curVal[8]);
-            rgbData[a] = parseInt(curVal[9]);
+            rgbData[r] = parseInt(curVal[6]) / 255;
+            rgbData[g] = parseInt(curVal[7]) / 255;
+            rgbData[b] = parseInt(curVal[8]) / 255;
+            rgbData[a] = parseInt(curVal[9]) / 255;
 
         }
     }
