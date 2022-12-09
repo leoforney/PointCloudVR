@@ -49,6 +49,14 @@
                 <button id="jiggleButton" onclick="effects.jiggle = !effects.jiggle;">Jiggle</button>
                 <input type="range" min="1" max="100" value="40" id="jiggleSlider" onchange="effectsProperties.jiggle = this.value/700">
             </span><br/>
+            <span>
+                <button id="explodeButton" onclick="effects.explode = !effects.explode;">Explode</button>
+                <input type="range" min="1" max="100" value="50" id="explodeSlider" onchange="effectsProperties.explode = this.value/2000">
+            </span><br/>
+
+            <input type="range" min="1" max="100" value="50" id="nearPlaneSlider" onchange="projNear = this.value/2000">
+            <input type="range" min="1" max="100" value="50" id="farPlaneSlider" onchange="projFar = this.value/50; console.log('far: ', projFar);">
+
 
             <button id="resetButton" onclick="clearEffects()">Reset</button>
         </div>
