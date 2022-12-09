@@ -9,12 +9,14 @@ var format, version;
 
 var effects = {
     implode: false,
-    jiggle: false
+    jiggle: false,
+    explode: false
 }
 
 var effectsProperties = {
     implode: 0.025,
-    jiggle: 50/700
+    jiggle: 50/700,
+    explode: 0
 }
 
 clearEffects = function() {
@@ -197,6 +199,7 @@ parseAscii = function() {
 // vertex shader
 const vshaderSource = `
 uniform mat4 transform;
+uniform float pointSize;
 attribute vec4 a_Position;
 attribute vec4 a_Color;
 varying vec4 color;
@@ -204,7 +207,7 @@ void main()
 {
   color = a_Color;
   gl_Position = transform * a_Position;
-  gl_PointSize = 5.0;
+  gl_PointSize = pointSize;
 }
 `;
 
@@ -255,8 +258,6 @@ var model = new THREE.Matrix4();
 //view matrix
 var view;
 
-// Alternatively, use the LookAt function, specifying the view (eye) point,
-// a point at which to look, and a direction for "up".
 // Approximate view point (1.77, 3.54, 3.06) corresponds to the view
 // matrix described above
 view = createLookAtMatrix(
@@ -269,10 +270,19 @@ view = createLookAtMatrix(
 var projection;
 
 // try the same numbers as before, with aspect ratio 1.5
-projection = new THREE.Matrix4().makePerspective(-1.5, 1.5, 1, -1, 4, 6);
+
+// projection = new THREE.Matrix4().makePerspective(-1.5, 1.5, 1, -1, 4, 6);
+
+var projLeft = -1.5, projRight = 1.5, projTop = 1, projBot = -1;
+var projNear = 4;
+var projFar = 6;
+//var start = 5;
+projection = new THREE.Matrix4().makePerspective(projLeft, projRight, projTop, projBot, projNear, projFar);
 
 var axis = 'y';
 var paused = false;
+
+var pointSize = 5.0;
 
 
 //translate keypress events to strings
@@ -387,6 +397,10 @@ function draw()
     var transformLoc = gl.getUniformLocation(shader, "transform");
     gl.uniformMatrix4fv(transformLoc, false, transform.elements);
 
+    //Set point size uniform
+    var pointLoc = gl.getUniformLocation(shader, "pointSize");
+    gl.uniform1f(pointLoc, pointSize);
+
     gl.drawArrays(gl.POINTS, 0, adjustedVerticiesAmount);
 
     // draw axes (not transformed by model transformation)
@@ -423,6 +437,7 @@ function main() {
         fileElement.onchange = function() {
             selectedFile = fileElement.files[0];
             setFile(selectedFile); //I chained all the parsing methods into this one
+            
         }
     } else {
         console.error('The File APIs are not fully supported by your browser.');
@@ -452,8 +467,26 @@ function main() {
     //Bring in plyParser class
     //plyParse = new plyParser();
 
+    
+
     document.addEventListener( 'mousewheel', (event) => {
-        view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, -event.deltaY/500))
+        let change = -event.deltaY/1000;
+        view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, change));
+        //model.premultiply(new THREE.Matrix4().makeScale(1 + change, 1 + change, 1 + change)); //should work for explosion
+        //let sign = change > 0 ? 1 : change < 0 ? -1 : 0;
+        //pointSize += 0.15 * sign;
+        //console.log(pointSize);
+
+        console.log(change, view);
+        // projLeft -= 0.1;
+        // projRight += 0.1;
+        // projTop += 0.1;
+        // projBot -= 0.1;
+        // projNear -= change;
+        // projFar -= change;
+
+        projection = new THREE.Matrix4().makePerspective(projLeft, projRight, projTop, projBot, projNear, projFar);
+        console.log(projNear, projFar);
     });
 
     var vertSlider = document.getElementById("verticesSlider")
@@ -495,6 +528,16 @@ function main() {
             }
         }
 
+        if (effects.explode) {
+            // for (var i = 0; i < modifiedVerticies.length; i++) {
+            //     for (var j = 0; j < 3; j++) {
+            //         modifiedVerticies[i][j] = modifiedVerticies[i][j] * (1 - effectsProperties.implode);
+            //     }
+            // }
+            model.premultiply(new THREE.Matrix4().makeScale(1 + 0.01, 1 + 0.01, 1 + 0.01));
+
+        }
+
         //vertexData = formArrayFromSegmentedBuffer(verticies, numVertices,3);
 
 	    draw();
@@ -521,8 +564,7 @@ function main() {
 
     model.premultiply(new THREE.Matrix4().makeRotationX(toRadians(270)));
 
-  animate();
+    animate();
 }
-
 
 
