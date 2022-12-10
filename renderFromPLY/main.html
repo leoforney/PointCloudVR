@@ -40,6 +40,8 @@
 
             <span><label>Verticies: </label><input type="range" min="1" max="100" value="100" id="verticesSlider"><br/></span>
 
+            <span><label>Point Size: </label><input type="range" min="0" max="10" value="5" id="pointSizeSlider" onchange="pointSize = this.value"><br/></span>
+
 
             <span>
                 <button id="implodeButton" onclick="effects.implode = !effects.implode;">Implode</button>
@@ -53,10 +55,11 @@
                 <button id="explodeButton" onclick="effects.explode = !effects.explode;">Explode</button>
                 <input type="range" min="1" max="100" value="50" id="explodeSlider" onchange="effectsProperties.explode = this.value/2000">
             </span><br/>
-
-            <input type="range" min="1" max="100" value="50" id="nearPlaneSlider" onchange="projNear = this.value/2000">
-            <input type="range" min="1" max="100" value="50" id="farPlaneSlider" onchange="projFar = this.value/50; console.log('far: ', projFar);">
-
+            <span>
+                <button id="dissolveButton" onclick="effects.dissolve = !effects.dissolve;">Dissolve</button>
+                <input type="range" min="1" max="100" value="30" id="dissolveSlider" onchange="effectsProperties.dissolve = this.value / 2">
+            </span><br/>
+            
 
             <button id="resetButton" onclick="clearEffects()">Reset</button>
         </div>
