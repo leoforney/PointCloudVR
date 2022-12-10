@@ -10,13 +10,15 @@ var format, version;
 var effects = {
     implode: false,
     jiggle: false,
-    explode: false
+    explode: false,
+    dissolve: false
 }
 
 var effectsProperties = {
     implode: 0.025,
     jiggle: 50/700,
-    explode: 0
+    explode: 0.01,
+    dissolve: 0.01
 }
 
 clearEffects = function() {
@@ -24,6 +26,7 @@ clearEffects = function() {
         effects[key] = false;
     }
     modifiedVerticies = [];
+    effectsProperties.explode = 0.01;
 }
 
 
@@ -276,7 +279,7 @@ var projection;
 var projLeft = -1.5, projRight = 1.5, projTop = 1, projBot = -1;
 var projNear = 4;
 var projFar = 6;
-//var start = 5;
+
 projection = new THREE.Matrix4().makePerspective(projLeft, projRight, projTop, projBot, projNear, projFar);
 
 var axis = 'y';
@@ -464,11 +467,6 @@ function main() {
 
     gl.enable(gl.DEPTH_TEST);
 
-    //Bring in plyParser class
-    //plyParse = new plyParser();
-
-    
-
     document.addEventListener( 'mousewheel', (event) => {
         let change = -event.deltaY/1000;
         view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, change));
@@ -505,6 +503,27 @@ function main() {
         return Math.random() * (max - min) + min
     }
 
+
+    // var directions;
+    // function setupDissolve() {
+    //     directions = [];
+    //     for (var i = 0; i < modifiedVerticies.length; i++) {
+    //         let max = -2;
+    //         directions[i] = Math.floor(Math.random() * 4);
+    //         // console.log(modifiedVerticies[i]);
+    //         // for (var j = 0; j < 3; j++) {
+    //         //     // max = Math.max(modifiedVerticies[i][j], max);
+
+    //         //     if(max < modifiedVerticies[i][j]) {
+    //         //         directions[i] = j;
+    //         //         max = modifiedVerticies[i][j];
+    //         //     }
+    //         // }
+    //     }
+    //     console.log(directions);
+    //     return directions;
+    // }
+
     // define an animation loop
     var animate = function() {
 
@@ -529,13 +548,24 @@ function main() {
         }
 
         if (effects.explode) {
-            // for (var i = 0; i < modifiedVerticies.length; i++) {
-            //     for (var j = 0; j < 3; j++) {
-            //         modifiedVerticies[i][j] = modifiedVerticies[i][j] * (1 - effectsProperties.implode);
-            //     }
-            // }
-            model.premultiply(new THREE.Matrix4().makeScale(1 + 0.01, 1 + 0.01, 1 + 0.01));
+            for (var i = 0; i < modifiedVerticies.length; i++) {
+                let dir = Math.floor(Math.random() * 5) - 2;
+                let sign = Math.floor(Math.random() * 3) - 1;
+                modifiedVerticies[i][dir] += effectsProperties.explode * sign;
+            }
+            effectsProperties.explode *= 1.1;
+        }
 
+        if (effects.dissolve) {
+            let dissolveSpeed = (((effectsProperties.dissolve) * (modifiedVerticies.length - modifiedVerticies.length / 200)) / 100 + modifiedVerticies.length / 200);
+            for (var i = 0; i < dissolveSpeed; i++) {
+                let val = Math.floor(Math.random() * modifiedVerticies.length);
+                modifiedVerticies[val][0] += 5;
+            }
+            //effectsProperties.dissolve *= 2;
+
+
+            //move particle in dir based on how far it is from origin
         }
 
         //vertexData = formArrayFromSegmentedBuffer(verticies, numVertices,3);
@@ -566,5 +596,4 @@ function main() {
 
     animate();
 }
-
 
