@@ -10,6 +10,7 @@ var format, version;
 var effects = {
     implode: false,
     jiggle: false,
+    fall: false,
     explode: false,
     dissolve: false
 }
@@ -17,6 +18,7 @@ var effects = {
 var effectsProperties = {
     implode: 0.025,
     jiggle: 50/700,
+    fall: 0.01,
     explode: 0.01,
     dissolve: 0.01
 }
@@ -33,7 +35,7 @@ clearEffects = function() {
     totalChange = 1;
 }
 
-
+var lowestYCoord = Number.MAX_SAFE_INTEGER;
 var verticesPercent = 1;
 
 function resizeCanvasToDisplaySize(canvas) {
@@ -175,6 +177,7 @@ parseAscii = function() {
         modifiedVerticies = [];
         verticies = [];
         rgbTexture = [];
+        lowestYCoord = Number.MAX_SAFE_INTEGER;
 
         var curVal, newline, line;
 
@@ -520,6 +523,12 @@ function main() {
 
         if (modifiedVerticies.length === 0) {
             modifiedVerticies = clone(verticies)
+
+            modifiedVerticies.forEach((vert) => {
+                if (vert[2] < lowestYCoord) {
+                    lowestYCoord = vert[2];
+                }
+            })
         }
 
         if (effects.jiggle) {
@@ -527,6 +536,12 @@ function main() {
                 for (var j = 0; j < 3; j++) {
                     modifiedVerticies[i][j] = verticies[i][j] + generateRandomJiggle(modifiedVerticies[i][j], effectsProperties.jiggle)
                 }
+            }
+        }
+
+        if (effects.fall) {
+            for (var i = 0; i < modifiedVerticies.length; i++) {
+                modifiedVerticies[i][2] = Math.max(modifiedVerticies[i][2] - effectsProperties.fall, lowestYCoord);
             }
         }
 
