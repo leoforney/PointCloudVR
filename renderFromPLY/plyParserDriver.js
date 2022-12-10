@@ -27,6 +27,10 @@ clearEffects = function() {
     }
     modifiedVerticies = [];
     effectsProperties.explode = 0.01;
+
+    let rescale = Math.abs(1 / totalChange);
+    model.premultiply(new THREE.Matrix4().makeScale(rescale, rescale, rescale));
+    totalChange = 1;
 }
 
 
@@ -427,7 +431,7 @@ function draw()
     gl.useProgram(null);
 }
 
-
+var totalChange = 1;
 
 // entry point when page is loaded
 function main() {
@@ -468,23 +472,10 @@ function main() {
     gl.enable(gl.DEPTH_TEST);
 
     document.addEventListener( 'mousewheel', (event) => {
-        let change = -event.deltaY/1000;
-        view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, change));
-        //model.premultiply(new THREE.Matrix4().makeScale(1 + change, 1 + change, 1 + change)); //should work for explosion
-        //let sign = change > 0 ? 1 : change < 0 ? -1 : 0;
-        //pointSize += 0.15 * sign;
-        //console.log(pointSize);
-
-        console.log(change, view);
-        // projLeft -= 0.1;
-        // projRight += 0.1;
-        // projTop += 0.1;
-        // projBot -= 0.1;
-        // projNear -= change;
-        // projFar -= change;
-
-        projection = new THREE.Matrix4().makePerspective(projLeft, projRight, projTop, projBot, projNear, projFar);
-        console.log(projNear, projFar);
+        let change = -event.deltaY/1000 + 1;
+        //view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, change));
+        model.premultiply(new THREE.Matrix4().makeScale(change, change, change));
+        totalChange *= change;
     });
 
     var vertSlider = document.getElementById("verticesSlider")
