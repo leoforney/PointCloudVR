@@ -9,7 +9,18 @@ var format, version;
 
 var effects = {
     implode: false,
-    jiggle: false
+    jiggle: false,
+    fall: false,
+    explode: false,
+    dissolve: false
+}
+
+var effectsProperties = {
+    implode: 0.025,
+    jiggle: 50/700,
+    fall: 0.01,
+    explode: 0.01,
+    dissolve: 0.01
 }
 
 clearEffects = function() {
@@ -17,9 +28,14 @@ clearEffects = function() {
         effects[key] = false;
     }
     modifiedVerticies = [];
+    effectsProperties.explode = 0.01;
+
+    let rescale = Math.abs(1 / totalChange);
+    model.premultiply(new THREE.Matrix4().makeScale(rescale, rescale, rescale));
+    totalChange = 1;
 }
 
-
+var lowestYCoord = Number.MAX_SAFE_INTEGER;
 var verticesPercent = 1;
 
 function resizeCanvasToDisplaySize(canvas) {
@@ -161,6 +177,7 @@ parseAscii = function() {
         modifiedVerticies = [];
         verticies = [];
         rgbTexture = [];
+        lowestYCoord = Number.MAX_SAFE_INTEGER;
 
         var curVal, newline, line;
 
@@ -192,6 +209,7 @@ parseAscii = function() {
 // vertex shader
 const vshaderSource = `
 uniform mat4 transform;
+uniform float pointSize;
 attribute vec4 a_Position;
 attribute vec4 a_Color;
 varying vec4 color;
@@ -199,7 +217,7 @@ void main()
 {
   color = a_Color;
   gl_Position = transform * a_Position;
-  gl_PointSize = 5.0;
+  gl_PointSize = pointSize;
 }
 `;
 
@@ -250,8 +268,6 @@ var model = new THREE.Matrix4();
 //view matrix
 var view;
 
-// Alternatively, use the LookAt function, specifying the view (eye) point,
-// a point at which to look, and a direction for "up".
 // Approximate view point (1.77, 3.54, 3.06) corresponds to the view
 // matrix described above
 view = createLookAtMatrix(
@@ -264,10 +280,19 @@ view = createLookAtMatrix(
 var projection;
 
 // try the same numbers as before, with aspect ratio 1.5
-projection = new THREE.Matrix4().makePerspective(-1.5, 1.5, 1, -1, 4, 6);
+
+// projection = new THREE.Matrix4().makePerspective(-1.5, 1.5, 1, -1, 4, 6);
+
+var projLeft = -1.5, projRight = 1.5, projTop = 1, projBot = -1;
+var projNear = 4;
+var projFar = 6;
+
+projection = new THREE.Matrix4().makePerspective(projLeft, projRight, projTop, projBot, projNear, projFar);
 
 var axis = 'y';
 var paused = false;
+
+var pointSize = 5.0;
 
 
 //translate keypress events to strings
@@ -382,6 +407,10 @@ function draw()
     var transformLoc = gl.getUniformLocation(shader, "transform");
     gl.uniformMatrix4fv(transformLoc, false, transform.elements);
 
+    //Set point size uniform
+    var pointLoc = gl.getUniformLocation(shader, "pointSize");
+    gl.uniform1f(pointLoc, pointSize);
+
     gl.drawArrays(gl.POINTS, 0, adjustedVerticiesAmount);
 
     // draw axes (not transformed by model transformation)
@@ -405,7 +434,7 @@ function draw()
     gl.useProgram(null);
 }
 
-
+var totalChange = 1;
 
 // entry point when page is loaded
 function main() {
@@ -418,6 +447,7 @@ function main() {
         fileElement.onchange = function() {
             selectedFile = fileElement.files[0];
             setFile(selectedFile); //I chained all the parsing methods into this one
+            
         }
     } else {
         console.error('The File APIs are not fully supported by your browser.');
@@ -444,11 +474,11 @@ function main() {
 
     gl.enable(gl.DEPTH_TEST);
 
-    //Bring in plyParser class
-    //plyParse = new plyParser();
-
     document.addEventListener( 'mousewheel', (event) => {
-        view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, -event.deltaY/500))
+        let change = -event.deltaY/1000 + 1;
+        //view.premultiply(new THREE.Matrix4().makeTranslation(0, 0, change));
+        model.premultiply(new THREE.Matrix4().makeScale(change, change, change));
+        totalChange *= change;
     });
 
     var vertSlider = document.getElementById("verticesSlider")
@@ -459,19 +489,89 @@ function main() {
 
     const clone = (items) => items.map(item => Array.isArray(item) ? clone(item) : item);
 
+    function generateRandomJiggle(pointVal, jiggleScale) {
+
+        var min = -jiggleScale * pointVal
+        var max = jiggleScale * pointVal
+
+        return Math.random() * (max - min) + min
+    }
+
+
+    // var directions;
+    // function setupDissolve() {
+    //     directions = [];
+    //     for (var i = 0; i < modifiedVerticies.length; i++) {
+    //         let max = -2;
+    //         directions[i] = Math.floor(Math.random() * 4);
+    //         // console.log(modifiedVerticies[i]);
+    //         // for (var j = 0; j < 3; j++) {
+    //         //     // max = Math.max(modifiedVerticies[i][j], max);
+
+    //         //     if(max < modifiedVerticies[i][j]) {
+    //         //         directions[i] = j;
+    //         //         max = modifiedVerticies[i][j];
+    //         //     }
+    //         // }
+    //     }
+    //     console.log(directions);
+    //     return directions;
+    // }
+
     // define an animation loop
     var animate = function() {
 
         if (modifiedVerticies.length === 0) {
             modifiedVerticies = clone(verticies)
+
+            modifiedVerticies.forEach((vert) => {
+                if (vert[2] < lowestYCoord) {
+                    lowestYCoord = vert[2];
+                }
+            })
+        }
+
+        if (effects.jiggle) {
+            for (var i = 0; i < modifiedVerticies.length; i++) {
+                for (var j = 0; j < 3; j++) {
+                    modifiedVerticies[i][j] = verticies[i][j] + generateRandomJiggle(modifiedVerticies[i][j], effectsProperties.jiggle)
+                }
+            }
+        }
+
+        if (effects.fall) {
+            for (var i = 0; i < modifiedVerticies.length; i++) {
+                modifiedVerticies[i][2] = Math.max(modifiedVerticies[i][2] - effectsProperties.fall, lowestYCoord);
+            }
         }
 
         if (effects.implode) {
             for (var i = 0; i < modifiedVerticies.length; i++) {
                 for (var j = 0; j < 3; j++) {
-                    modifiedVerticies[i][j] = modifiedVerticies[i][j] * 0.99;
+                    modifiedVerticies[i][j] = modifiedVerticies[i][j] * (1 - effectsProperties.implode);
                 }
             }
+        }
+
+        if (effects.explode) {
+            for (var i = 0; i < modifiedVerticies.length; i++) {
+                let dir = Math.floor(Math.random() * 5) - 2;
+                let sign = Math.floor(Math.random() * 3) - 1;
+                modifiedVerticies[i][dir] += effectsProperties.explode * sign;
+            }
+            effectsProperties.explode *= 1.1;
+        }
+
+        if (effects.dissolve) {
+            let dissolveSpeed = (((effectsProperties.dissolve) * (modifiedVerticies.length - modifiedVerticies.length / 200)) / 100 + modifiedVerticies.length / 200);
+            for (var i = 0; i < dissolveSpeed; i++) {
+                let val = Math.floor(Math.random() * modifiedVerticies.length);
+                modifiedVerticies[val][0] += 5;
+            }
+            //effectsProperties.dissolve *= 2;
+
+
+            //move particle in dir based on how far it is from origin
         }
 
         //vertexData = formArrayFromSegmentedBuffer(verticies, numVertices,3);
@@ -500,8 +600,6 @@ function main() {
 
     model.premultiply(new THREE.Matrix4().makeRotationX(toRadians(270)));
 
-  animate();
+    animate();
 }
-
-
 
