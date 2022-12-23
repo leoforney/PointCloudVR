@@ -65,10 +65,7 @@ function points() {
 
     geometry.computeBoundingSphere();
 
-    var material = new THREE.PointsMaterial({
-        size: 3,
-        vertexColors: THREE.VertexColors
-    });
+    var material = new THREE.PointsMaterial();
 
     p = new THREE.Points(geometry, material);
     scene.add(p);
