@@ -1,8 +1,16 @@
+// @ts-nocheck
 import * as THREE from 'three'
 import StatsVR from 'statsvr'
 import {VRButton} from 'three/examples/jsm/webxr/VRButton';
+import { fetchProfile, MotionController } from '@webxr-input-profiles/motion-controllers'
 import TeleportVR from './teleportvr'
 import {Points} from "three";
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {EffectComposer} from "three/examples/jsm/postprocessing/EffectComposer";
+import {RenderPass} from "three/examples/jsm/postprocessing/RenderPass";
+import {ShaderPass} from "three/examples/jsm/postprocessing/ShaderPass";
+import { BadTVShader } from './BadTVShader.js';
+import {XRControllerModel} from "three/examples/jsm/webxr/XRControllerModelFactory";
 
 const scene: THREE.Scene = new THREE.Scene()
 
@@ -12,12 +20,20 @@ const camera: THREE.PerspectiveCamera = new THREE.PerspectiveCamera(
     0.1,
     1000
 )
-camera.position.set(0, 1.6, 3)
+camera.position.set(0, 1.6, 2.25)
+camera.rotation.x -= degrees_to_radians(15)
 
 const renderer = new THREE.WebGLRenderer({antialias: true})
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.xr.enabled = true
+
+var composer = new EffectComposer( renderer);
+var renderPass = new RenderPass( scene, camera );
+var badTVPass = new ShaderPass( BadTVShader );
+composer.addPass( renderPass );
+composer.addPass( badTVPass );
+badTVPass.renderToScreen = true;
 
 document.body.appendChild(renderer.domElement)
 
@@ -34,6 +50,8 @@ floor.rotation.x = Math.PI / -2
 floor.position.y = -0.001
 scene.add(floor)
 
+var gltfLoader = new GLTFLoader();
+
 let spotLight: THREE.SpotLight, lightHelper: THREE.SpotLightHelper;
 
 let p: Points;
@@ -44,7 +62,7 @@ let numVertices: number;
 let numFaces: number;
 let hasFaces = false;
 let adjustedVerticiesAmount: number;
-let verticesPercent = 0.85;
+let verticesPercent = 0.95;
 let rgbData: any;
 let vertexData: any;
 let model: any;
@@ -116,7 +134,7 @@ function loadPly(textData: String) {
 
     // @ts-ignore
     var material = new THREE.PointsMaterial({
-        size: 0.01,
+        size: 0.007,
         vertexColors: true
     });
 
@@ -130,10 +148,6 @@ function parseHeader(textData: String) {
 
     //Read header
     var curVal, newline, line;
-    //var hasNormals = false;
-    //text = String(text);
-
-    //console.log("TEXT DATA: " + textData);
 
     while(textData.length) {
         newline = textData.indexOf("\n") + 1;
@@ -195,64 +209,11 @@ function loadLight() {
     spotLight.shadow.focus = 1;
     scene.add( spotLight );
 
-    lightHelper = new THREE.SpotLightHelper( spotLight );
-    scene.add( lightHelper );
+/*    lightHelper = new THREE.SpotLightHelper( spotLight );
+    scene.add( lightHelper );*/
 }
 
-function points() {
-    var particles = 10000;
-
-    var geometry = new THREE.BufferGeometry();
-
-    var positions = [];
-    var colors = [];
-
-    var color = new THREE.Color();
-
-    var n = 1.5,
-        n2 = n / 2; // particles spread in the cube
-
-    for (var i = 0; i < particles; i++) {
-        // positions
-
-        var x = (Math.random() * n - n2);
-        var y = (Math.random() * n - n2);
-        var z = Math.random() * n - n2;
-
-        positions.push(x, y, z);
-
-        // colors
-
-        var vx = x / n + 0.25;
-        var vy = y / n + 0.25;
-        var vz = z / n + 0.25;
-
-        color.setRGB(vx, vy, vz);
-
-        colors.push(color.r, color.g, color.b);
-    }
-
-    geometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-    geometry.computeBoundingSphere();
-
-    // @ts-ignore
-    var material = new THREE.PointsMaterial({
-        size: 0.01,
-        vertexColors: true
-    });
-
-    p = new THREE.Points(geometry, material);
-    scene.add(p);
-}
-
-//points()
-
-fetch("models/brad.ply")
+fetch("models/leo_chair.ply")
     .then((response) => response.text())
     .then((text) => {
         parseHeader(text)
@@ -272,9 +233,9 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight)
 }
 
-const teleportVR = new TeleportVR(scene, camera)
+//const teleportVR = new TeleportVR(scene, camera)
 
-const lefthand = new THREE.Mesh(
+/*const lefthand = new THREE.Mesh(
     new THREE.CylinderGeometry(0.05, 0.05, 0.4, 16, 1, true),
     new THREE.MeshBasicMaterial({
         color: 0x00ff88,
@@ -289,7 +250,7 @@ controllerGrip0.addEventListener('connected', (e: any) => {
 })
 
 const righthand = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.05, 0.4, 16, 1, true),
+    new THREE.CylinderGeometry(0.05, 0.05, 0.2, 16, 1, true),
     new THREE.MeshBasicMaterial({
         color: 0x00ff88,
         wireframe: true,
@@ -299,7 +260,60 @@ const controllerGrip1 = renderer.xr.getControllerGrip(1)
 controllerGrip1.addEventListener('connected', (e: any) => {
     controllerGrip1.add(righthand)
     teleportVR.add(1, controllerGrip1, e.data.gamepad)
-})
+})*/
+
+const motionControllers: {} = {};
+
+function xrSessionStart() {
+    // @ts-ignore
+    let xrSession: XRSession = renderer.xr.getSession();
+
+    const uri = 'webxr-profiles/profiles/';
+
+
+    function addTouchPointDots(motionController: MotionController, asset: any) {
+        Object.values(motionController.components).forEach((component) => {
+            if (component.touchPointNodeName) {
+                const touchPointRoot = asset.getChildByName(component.touchPointNodeName, true);
+
+                const sphereGeometry = new THREE.SphereGeometry(0.001);
+                const material = new THREE.MeshBasicMaterial({ color: 0x0000FF });
+                const touchPointDot = new THREE.Mesh(sphereGeometry, material);
+                touchPointRoot.add(touchPointDot);
+            }
+        });
+    }
+
+    async function addMotionControllerToScene(motionController: MotionController) {
+        console.log(motionController.assetUrl)
+        gltfLoader.load(motionController.assetUrl, function( gltf ) {
+            var asset = gltf.scene
+            //addTouchPointDots(motionController, asset);
+            scene.add(asset)
+        })
+    }
+
+    async function createMotionController(xrInputSource: XRInputSource) {
+        const { profile, assetPath } = await fetchProfile(xrInputSource, uri);
+        // @ts-ignore
+        const motionController = new MotionController(xrInputSource, profile, assetPath);
+        // @ts-ignore
+        motionControllers[xrInputSource] = motionController;
+        addMotionControllerToScene(motionController);
+    }
+
+    xrSession.addEventListener('inputsourceschange', onInputSourcesChange);
+
+    function onInputSourcesChange(event: XRInputSourceChangeEvent) {
+        event.added.forEach((xrInputSource) => {
+            createMotionController(xrInputSource);
+        });
+    };
+
+}
+
+renderer.xr.addEventListener( 'sessionstart', xrSessionStart);
+
 
 const statsVR = new StatsVR(scene, camera)
 statsVR.setX(0)
@@ -315,12 +329,57 @@ function degrees_to_radians(degrees: number)
     return degrees * (pi / 180);
 }
 
+
+function updateMotionControllerModel(motionController: any) {
+
+    // Update the 3D model to reflect the button, thumbstick, and touchpad state
+    const motionControllerRoot = scene.getObjectByName(motionController.rootNodeName);
+    Object.values(motionController.components).forEach((component) => {
+        // @ts-ignore
+        component.visualResponses.forEach((visualResponse) => {
+            // Find the topmost node in the visualization
+            const valueNode = motionControllerRoot.getChildByName(visualResponse.valueNodeName);
+
+            // Calculate the new properties based on the weight supplied
+            if (visualResponse.valueNodeProperty === 'visibility') {
+                valueNode.visible = visualResponse.value;
+            } else if (visualResponse.valueNodeProperty === 'transform') {
+                // @ts-ignore
+                const minNode = motionControllerRoot.getObjectByName(visualResponse.minNodeName);
+                // @ts-ignore
+                const maxNode = motionControllerRoot.getObjectByName(visualResponse.maxNodeName);
+
+                // @ts-ignore
+                THREE.Quaternion.slerp(
+                    minNode.quaternion,
+                    maxNode.quaternion,
+                    valueNode.quaternion,
+                    visualResponse.value
+                );
+
+                valueNode.position.lerpVectors(
+                    minNode.position,
+                    maxNode.position,
+                    visualResponse.value
+                );
+            }
+        });
+    });
+}
+
+var shaderTime = 0;
+
 function render() {
     const time = performance.now() / 3000;
 
     statsVR.update()
 
-    teleportVR.update()
+    //teleportVR.update()
+
+    shaderTime += 0.1;
+    badTVPass.uniforms['time'].value = shaderTime;
+
+    composer.render(0.1);
 
     if (model != null) {
         model.rotation.x = degrees_to_radians(-90)
@@ -334,6 +393,13 @@ function render() {
 
     spotLight.position.x = Math.cos( time ) * 25;
     spotLight.position.z = Math.sin( time ) * 25;
+
+    Object.keys(motionControllers).forEach((motionController) => {
+        // @ts-ignore
+        motionController.updateFromGamepad();
+        // @ts-ignore
+        updateMotionControllerModel(motionController);
+    });
 
     renderer.render(scene, camera)
 }

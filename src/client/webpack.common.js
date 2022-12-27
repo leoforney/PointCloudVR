@@ -4,7 +4,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
     entry: {
-        demo1: path.resolve(__dirname, './index.ts'),
+        index: path.resolve(__dirname, './index.ts'),
     },
     module: {
         rules: [
@@ -18,6 +18,7 @@ module.exports = {
     resolve: {
         alias: {
             three: path.resolve('./node_modules/three'),
+            '@webxr-input-profiles/motion-controllers': path.resolve("./node_modules/@webxr-input-profiles/motion-controllers"),
         },
         extensions: ['.tsx', '.ts', '.js'],
     },
@@ -29,11 +30,13 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: path.resolve(__dirname, './index.html'),
             filename: path.resolve(__dirname, '../../dist/client/index.html'),
-            chunks: ['demo1'],
+            chunks: ['index'],
         }),
         new CopyPlugin({
             patterns: [
-                { from: path.resolve(__dirname, './models' ), to: path.resolve(__dirname, '../../dist/client/models' ) }
+                { from: path.resolve(__dirname, './models' ), to: path.resolve(__dirname, '../../dist/client/models' ) },
+                { from: path.resolve(__dirname, '../../node_modules/@webxr-input-profiles/assets/dist'), to: path.resolve(__dirname, '../../dist/client/webxr-profiles' ) },
+                { from: path.resolve(__dirname, './BadTVShader.js'), to: path.resolve(__dirname, '../../dist/client' ) }
             ]
         })
     ],

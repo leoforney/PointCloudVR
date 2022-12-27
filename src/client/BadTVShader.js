@@ -36,7 +36,7 @@
  *
  */
 
-export var BadTVShader = {
+var BadTVShader = {
 	uniforms: {
 		"tDiffuse": 	{ type: "t", value: null },
 		"time": 		{ type: "f", value: 0.0 },
@@ -135,3 +135,5 @@ export var BadTVShader = {
 	].join("\n")
 
 };
+
+export default BadTVShader;
